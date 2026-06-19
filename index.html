@@ -284,6 +284,15 @@
     <!-- Installations-Hinweis — nur sichtbar wenn NICHT als installierte App geöffnet -->
     <div id="installHint" class="install-hint" style="display:none;"></div>
 
+    <!-- Hinweis: kein Name hinterlegt — z.B. nach längerer Nichtnutzung / neuem Gerät -->
+    <div id="noNameHint" class="install-hint" style="display:none; background:var(--yellow-light); border-color:var(--yellow-mid);">
+      <div class="install-hint-title" style="color:var(--ink);">👤 Noch kein Name hinterlegt</div>
+      <div class="install-hint-text" style="color:var(--ink-soft);">
+        In den ⚙️ <b>Einstellungen</b> ist noch kein Name eingetragen — er erscheint später im CSV-Export. Falls du schon einmal ein Backup gemacht hattest (z. B. vor längerer Pause oder auf einem neuen Gerät), kannst du Name, Schuljahr und alle Einträge daraus wiederherstellen.
+      </div>
+      <button class="btn-secondary" style="margin-top:10px; padding:9px;" onclick="doImport()">📂 Backup einspielen</button>
+    </div>
+
     <!-- DATUM -->
     <div class="field" id="fDatum">
       <label>Datum</label>
@@ -620,6 +629,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderList();
   updExport();
   renderInstallHint();
+  renderNoNameHint();
   appReady = true; // ab jetzt darf der Backup-Banner reagieren
 });
 
@@ -682,6 +692,16 @@ function renderInstallHint() {
   box.style.display = 'block';
 }
 
+// ═══════════════════════════════════════════
+// HINWEIS: KEIN NAME HINTERLEGT
+// ═══════════════════════════════════════════
+function renderNoNameHint() {
+  const box = document.getElementById('noNameHint');
+  if (!box) return;
+  const hasName = !!(ls('faw_name') || '').trim();
+  box.style.display = hasName ? 'none' : 'block';
+}
+
 function getDateISO() {
   return document.getElementById('inDatum').value;
 }
@@ -721,6 +741,7 @@ function overlayClick(e) { if (e.target === document.getElementById('overlay')) 
 function saveSetting(k)  {
   if (k === 'name') lsSet('faw_name', document.getElementById('setName').value);
   if (k === 'year') lsSet('faw_year', document.getElementById('setYear').value);
+  renderNoNameHint();
   toast('✅ Gespeichert');
 }
 
@@ -1131,6 +1152,7 @@ function handleImport(input) {
           updHeader();
           renderList();
           updExport();
+          renderNoNameHint();
           toast(`✅ ${n} Einträge importiert`);
         },
         { icon: '📂', label: 'Importieren', tone: 'primary' }
