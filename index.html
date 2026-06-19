@@ -298,10 +298,10 @@
 
     <!-- KATEGORIE -->
     <div class="field" id="fKat">
-      <label>Kategorie</label>
+      <label>Kategorie <span style="font-weight:400; color:var(--ink-faint)">(optional)</span></label>
       <div class="cat-grid">
         <button class="cat-btn" onclick="pickCat(this,'Garten')">🌿 Garten</button>
-        <button class="cat-btn" onclick="pickCat(this,'Renovation')">🔨 Renovation</button>
+        <button class="cat-btn" onclick="pickCat(this,'Elternbeirat')">🏛️ Elternbeirat</button>
         <button class="cat-btn" onclick="pickCat(this,'Veranstaltung')">🎉 Veranstaltung</button>
         <button class="cat-btn" onclick="pickCat(this,'Verwaltung')">📋 Verwaltung</button>
         <button class="cat-btn" onclick="pickCat(this,'Küche')">🍳 Küche</button>
@@ -345,7 +345,7 @@
     <span class="list-toolbar-title">Alle Einträge</span>
     <select class="filter-sel" id="filterCat" onchange="renderList()">
       <option value="">Alle Kategorien</option>
-      <option>Garten</option><option>Renovation</option><option>Veranstaltung</option>
+      <option>Garten</option><option>Elternbeirat</option><option>Veranstaltung</option>
       <option>Verwaltung</option><option>Küche</option><option>Transport</option>
       <option>Reinigung</option><option>Sonstiges</option>
     </select>
@@ -448,7 +448,7 @@
 
       <div class="warn-box">
         <h4>📄 Hinweis zur App</h4>
-        <p>Diese App wurde von Ernest Jennen, Elternteil an der Montessori-Einrichtung Wertingen, in Eigeninitiative und ohne offizielle Beauftragung entwickelt. Sie dient ausschließlich als persönliche, freiwillige Unterstützung bei der Erfassung von Familienarbeitsstunden.</p>
+        <p>Diese App wurde von Ernest Jennen, Elternteil am Montessori-Campus Wertingen, in Eigeninitiative und ohne offizielle Beauftragung entwickelt. Sie dient ausschließlich als persönliche, freiwillige Unterstützung bei der Erfassung von Familienarbeitsstunden.</p>
         <p>Die App erhebt keinen Anspruch auf Vollständigkeit, Richtigkeit oder rechtliche Verbindlichkeit. Für die Korrektheit der erfassten Stunden ist jede Familie selbst verantwortlich. Die offiziellen Vorgaben der Schule sind maßgeblich.</p>
         <p>Der Entwickler übernimmt keine Haftung für Datenverlust, fehlerhafte Erfassung oder andere direkte oder indirekte Schäden, die durch die Nutzung dieser App entstehen könnten.</p>
       </div>
@@ -478,7 +478,7 @@
 
       <div class="info-box">
         <h4>➕ Erfassen</h4>
-        <p>Datum wählen, Dauer antippen, Kategorie auswählen und eine Beschreibung eingeben — dann auf „Eintrag speichern". Alle vier Felder sind Pflichtfelder.</p>
+        <p>Datum wählen, Dauer antippen und eine Beschreibung eingeben — dann auf „Eintrag speichern". Die Kategorie ist optional und kann zur besseren Übersicht zusätzlich ausgewählt werden.</p>
       </div>
 
       <div class="info-box">
@@ -513,7 +513,7 @@
 
       <div class="info-box">
         <h4>🌱 Familienarbeitsstunden Montessori-Campus Wertingen</h4>
-        <p>Entwickelt von Ernest Jennen in Eigeninitiative als Elternteil der Montessori-Einrichtung Wertingen. Die App läuft vollständig lokal auf dem Gerät — ohne Server, ohne Cloud, ohne Registrierung.</p>
+        <p>Entwickelt von Ernest Jennen in Eigeninitiative als Elternteil am Montessori-Campus Wertingen. Die App läuft vollständig lokal auf dem Gerät — ohne Server, ohne Cloud, ohne Registrierung.</p>
         <p>Version 1.3.0</p>
       </div>
 
@@ -535,7 +535,7 @@
         Abbrechen
       </button>
       <button id="confirmOkBtn" onclick="confirmResolve(true)"
-        style="padding:13px; border-radius:var(--radius-sm); border:none; background:var(--red); font-family:'DM Sans',sans-serif; font-size:0.95rem; font-weight:700; color:#fff; cursor:pointer;">
+        style="padding:13px; border-radius:var(--radius-sm); border:none; font-family:'DM Sans',sans-serif; font-size:0.95rem; font-weight:700; cursor:pointer;">
         Löschen
       </button>
     </div>
@@ -661,7 +661,6 @@ function pickCat(btn, cat) {
 function chk() {
   const ok = !!(getDateISO()
     && selDur && selDur > 0
-    && selCat
     && document.getElementById('inNote').value.trim());
   const s = document.getElementById('btnSave');
   const u = document.getElementById('btnUpdate');
@@ -673,7 +672,6 @@ function chk() {
 function validate() {
   let ok = true;
   if (!selDur || selDur <= 0) { document.getElementById('fDauer').classList.add('has-error'); ok = false; }
-  if (!selCat)                { document.getElementById('fKat').classList.add('has-error');   ok = false; }
   if (!document.getElementById('inNote').value.trim()) { document.getElementById('fNote').classList.add('has-error'); ok = false; }
   return ok;
 }
@@ -804,7 +802,7 @@ function renderList() {
       <div class="entry-dot"></div>
       <div class="entry-body" onclick="openEdit(${e.id})">
         <div class="entry-row1">
-          <span class="entry-cat">${e.kategorie}</span>
+          <span class="entry-cat">${e.kategorie || 'Ohne Kategorie'}</span>
           <span class="entry-h">${fmtH(e.dauer)}</span>
         </div>
         <div class="entry-note">${e.notiz}</div>
@@ -979,7 +977,8 @@ function handleImport(input) {
           renderList();
           updExport();
           toast(`✅ ${n} Einträge importiert`);
-        }
+        },
+        { icon: '📂', label: 'Importieren', tone: 'primary' }
       );
     } catch(err) {
       toast('❌ Datei konnte nicht gelesen werden');
@@ -993,10 +992,27 @@ function handleImport(input) {
 // ═══════════════════════════════════════════
 let _confirmCb = null;
 
-function confirmDialog(title, msg, onOk) {
+function confirmDialog(title, msg, onOk, opts) {
+  opts = opts || {};
+  const icon  = opts.icon  || '🗑️';
+  const label = opts.label || 'Löschen';
+  const tone  = opts.tone  || 'danger'; // 'danger' = rot, 'primary' = gelb
+
   _confirmCb = onOk;
+  document.getElementById('confirmIcon').textContent  = icon;
   document.getElementById('confirmTitle').textContent = title;
   document.getElementById('confirmMsg').textContent   = msg;
+
+  const okBtn = document.getElementById('confirmOkBtn');
+  okBtn.textContent = label;
+  if (tone === 'primary') {
+    okBtn.style.background = 'var(--yellow)';
+    okBtn.style.color = 'var(--ink)';
+  } else {
+    okBtn.style.background = 'var(--red)';
+    okBtn.style.color = '#fff';
+  }
+
   document.getElementById('confirmOverlay').classList.add('on');
 }
 function confirmResolve(ok) {
