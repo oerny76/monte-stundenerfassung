@@ -57,8 +57,8 @@
 
     /* ── INSTALL-HINWEIS (nur im Browser-Tab, nicht in installierter PWA) ── */
     .install-hint {
-      background: var(--blue-light); border: 1.5px solid var(--blue-border); border-radius: var(--radius);
-      padding: 14px 16px; margin-top: 4px;
+      background: var(--blue-light); border: 1.5px solid var(--blue-border); border-radius: var(--radius-sm);
+      padding: 13px 14px; margin-bottom: 16px;
     }
     .install-hint-title { font-size: 0.82rem; font-weight: 700; color: var(--blue-text); margin-bottom: 6px; }
     .install-hint-text { font-size: 0.78rem; color: var(--blue-text); line-height: 1.55; }
@@ -281,6 +281,9 @@
 
     <div class="form-card-title" id="formTitle">Neuer Eintrag</div>
 
+    <!-- Installations-Hinweis — nur sichtbar wenn NICHT als installierte App geöffnet -->
+    <div id="installHint" class="install-hint" style="display:none;"></div>
+
     <!-- DATUM -->
     <div class="field" id="fDatum">
       <label>Datum</label>
@@ -343,9 +346,6 @@
     </div>
 
   </div>
-
-  <!-- Installations-Hinweis — nur sichtbar wenn NICHT als installierte App geöffnet -->
-  <div id="installHint" class="install-hint" style="display:none;"></div>
 
 </div>
 
@@ -568,7 +568,7 @@
 ══════════════════════════════════════════ -->
 <div id="backupBanner" style="display:none; position:fixed; left:14px; right:14px; bottom:84px; z-index:300;
   background:var(--ink); color:#fff; border-radius:var(--radius-sm); padding:11px 12px 11px 14px;
-  display:flex; align-items:center; gap:10px; box-shadow:0 8px 24px rgba(0,0,0,0.25); animation:up 0.2s ease-out;">
+  align-items:center; gap:10px; box-shadow:0 8px 24px rgba(0,0,0,0.25); animation:up 0.2s ease-out;">
   <span style="font-size:1.1rem; flex-shrink:0;">💾</span>
   <span style="font-size:0.8rem; line-height:1.35; flex:1;">
     Änderungen gespeichert. Backup erstellen, damit nichts verloren geht?
