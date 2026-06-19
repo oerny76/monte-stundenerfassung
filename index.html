@@ -55,6 +55,15 @@
     .form-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; margin-bottom: 12px; }
     .form-card-title { font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ink-soft); margin-bottom: 14px; }
 
+    /* ── INSTALL-HINWEIS (nur im Browser-Tab, nicht in installierter PWA) ── */
+    .install-hint {
+      background: var(--blue-light); border: 1.5px solid var(--blue-border); border-radius: var(--radius);
+      padding: 14px 16px; margin-top: 4px;
+    }
+    .install-hint-title { font-size: 0.82rem; font-weight: 700; color: var(--blue-text); margin-bottom: 6px; }
+    .install-hint-text { font-size: 0.78rem; color: var(--blue-text); line-height: 1.55; }
+    .install-hint-text b { font-weight: 700; }
+
     /* ── EDIT BANNER ── */
     .edit-banner { background: var(--blue-light); border: 1.5px solid var(--blue-border); border-radius: var(--radius-sm); padding: 9px 12px; margin-bottom: 12px; font-size: 0.82rem; font-weight: 600; color: var(--blue-text); display: flex; align-items: center; gap: 7px; }
 
@@ -334,6 +343,10 @@
     </div>
 
   </div>
+
+  <!-- Installations-Hinweis — nur sichtbar wenn NICHT als installierte App geöffnet -->
+  <div id="installHint" class="install-hint" style="display:none;"></div>
+
 </div>
 
 <!-- ══════════════════════════════════════════
@@ -386,7 +399,7 @@
 
   <div style="margin-top:18px;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--ink-faint);margin-bottom:8px;">Datensicherung</div>
   <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:11px 12px; margin-bottom:10px; font-size:0.76rem; color:var(--ink-soft); line-height:1.5;">
-    ⚠️ Alle Einträge liegen nur auf diesem Gerät. Bei einer Browser-Neuinstallation oder nach längerer Nichtnutzung kann iOS den lokalen Speicher automatisch leeren. Ein regelmäßiges Backup schützt davor.
+    ⚠️ Alle Einträge liegen nur auf diesem Gerät. Bei einer Browser-Neuinstallation oder nach längerer Nichtnutzung kann iOS den lokalen Speicher automatisch leeren. Ein regelmäßiges Backup schützt davor — die Datei landet im Downloads-Ordner bzw. in „Dateien" (iOS) oder an einem selbst gewählten Ort (Android).
   </div>
   <button class="btn-exp" style="background:var(--card);color:var(--ink);border:1.5px solid var(--border);" onclick="doBackup()">💾 Backup speichern (JSON)</button>
   <button class="btn-exp" style="background:var(--card);color:var(--ink);border:1.5px solid var(--border);" onclick="doImport()">📂 Backup importieren</button>
@@ -459,7 +472,7 @@
 
       <div class="version-line">
         Familienarbeitsstunden Montessori-Campus Wertingen<br>
-        Version 1.4.0 · Entwickelt von Ernest Jennen
+        Version 1.5.0 · Entwickelt von Ernest Jennen
       </div>
 
     </div>
@@ -519,7 +532,7 @@
       <div class="info-box">
         <h4>🌱 Familienarbeitsstunden Montessori-Campus Wertingen</h4>
         <p>Entwickelt von Ernest Jennen in Eigeninitiative als Elternteil am Montessori-Campus Wertingen. Die App läuft vollständig lokal auf dem Gerät — ohne Server, ohne Cloud, ohne Registrierung.</p>
-        <p>Version 1.4.0</p>
+        <p>Version 1.5.0</p>
       </div>
 
     </div>
@@ -597,6 +610,8 @@ let selIds     = new Set(); // für Batch-Löschung
 // ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
+let appReady = false; // verhindert Backup-Banner direkt beim Laden der Seite
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('inDatum').value = today();
   document.getElementById('setName').value = ls('faw_name') || '';
@@ -604,6 +619,8 @@ document.addEventListener('DOMContentLoaded', () => {
   updHeader();
   renderList();
   updExport();
+  renderInstallHint();
+  appReady = true; // ab jetzt darf der Backup-Banner reagieren
 });
 
 function today() {
@@ -612,6 +629,57 @@ function today() {
   const m = String(d.getMonth()+1).padStart(2,'0');
   const t = String(d.getDate()).padStart(2,'0');
   return `${y}-${m}-${t}`;
+}
+
+// ═══════════════════════════════════════════
+// PWA-ERKENNUNG & INSTALLATIONS-HINWEIS
+// ═══════════════════════════════════════════
+function isRunningAsPWA() {
+  // iOS: navigator.standalone; Android/Desktop: matchMedia display-mode
+  return window.navigator.standalone === true
+      || window.matchMedia('(display-mode: standalone)').matches;
+}
+
+function detectOS() {
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (ua.includes('Macintosh') && navigator.maxTouchPoints > 1);
+  if (isIOS) return 'ios';
+  if (/Android/.test(ua)) return 'android';
+  return 'other';
+}
+
+function renderInstallHint() {
+  const box = document.getElementById('installHint');
+  if (!box) return;
+
+  // Bereits als App installiert → keinen Hinweis zeigen
+  if (isRunningAsPWA()) { box.style.display = 'none'; return; }
+
+  const os = detectOS();
+  let html = '';
+
+  if (os === 'ios') {
+    html = `
+      <div class="install-hint-title">📲 Als App installieren (iPhone/iPad)</div>
+      <div class="install-hint-text">
+        Tippe unten auf das <b>Teilen-Symbol</b> ⬆️ in Safari, dann auf <b>„Zum Home-Bildschirm"</b> und bestätige mit <b>„Hinzufügen"</b>. Die App erscheint danach als Symbol auf deinem Home-Bildschirm.
+      </div>`;
+  } else if (os === 'android') {
+    html = `
+      <div class="install-hint-title">📲 Als App installieren (Android)</div>
+      <div class="install-hint-text">
+        Tippe oben rechts in Chrome auf die <b>drei Punkte</b> (⋮), dann auf <b>„App installieren"</b> bzw. <b>„Zum Startbildschirm hinzufügen"</b>.
+      </div>`;
+  } else {
+    html = `
+      <div class="install-hint-title">📲 Auf dem Handy installieren</div>
+      <div class="install-hint-text">
+        Öffne diese Seite auf deinem iPhone (Safari) oder Android-Handy (Chrome), um sie als App auf dem Startbildschirm zu installieren.
+      </div>`;
+  }
+
+  box.innerHTML = html;
+  box.style.display = 'block';
 }
 
 function getDateISO() {
@@ -937,6 +1005,7 @@ function updHeader(){ document.getElementById('totalBadge').textContent = fmtH(e
 // ── Backup-Hinweis-Banner ──
 let _bannerTimeout = null;
 function showBackupBanner() {
+  if (!appReady) return;      // beim initialen Laden nicht anzeigen
   if (!entries.length) return; // nichts zu sichern (z.B. nach "Alle löschen")
   const banner = document.getElementById('backupBanner');
   clearTimeout(_bannerTimeout);
@@ -948,9 +1017,9 @@ function dismissBanner() {
   clearTimeout(_bannerTimeout);
   document.getElementById('backupBanner').style.display = 'none';
 }
-function bannerBackup() {
+async function bannerBackup() {
   dismissBanner();
-  doBackup();
+  await doBackup();
 }
 
 function fmtH(h) {
@@ -977,24 +1046,64 @@ function closeHelpOnOverlay(e) { if (e.target === document.getElementById('helpO
 // ═══════════════════════════════════════════
 // BACKUP (JSON) — Speichern & Importieren
 // ═══════════════════════════════════════════
-function doBackup() {
+async function doBackup() {
   if (!entries.length) { toast('⚠️ Keine Einträge vorhanden'); return; }
   const payload = {
-    version: '1.4.0',
+    version: '1.5.0',
     exportedAt: new Date().toISOString(),
     name: ls('faw_name') || '',
     year: ls('faw_year') || autoYear(),
     entries: entries
   };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], {type: 'application/json'});
+  const json     = JSON.stringify(payload, null, 2);
+  const sn       = (ls('faw_name') || 'backup').replace(/\s+/g,'_');
+  const filename = `FAW_Backup_${sn}_${today()}.json`;
+
+  // Variante 1: Speicherort-Dialog (Chrome/Android/Desktop) — Nutzer wählt aktiv einen Ordner
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: 'JSON-Backup', accept: {'application/json': ['.json']} }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(json);
+      await writable.close();
+      markBackupDone();
+      toast('💾 Backup gespeichert');
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') return; // Nutzer hat Dialog abgebrochen
+      // sonst: Fallback unten verwenden
+    }
+  }
+
+  // Variante 2: Fallback für iOS Safari & ältere Browser — Download + klare Anleitung
+  const blob = new Blob([json], {type: 'application/json'});
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  const sn   = (ls('faw_name') || 'backup').replace(/\s+/g,'_');
   a.href     = url;
-  a.download = `FAW_Backup_${sn}_${today()}.json`;
+  a.download = filename;
   document.body.appendChild(a); a.click();
   document.body.removeChild(a); URL.revokeObjectURL(url);
-  toast('💾 Backup gespeichert');
+  markBackupDone();
+  showBackupSavedHint(filename);
+}
+
+function markBackupDone() {
+  lsSet('faw_lastBackup', new Date().toISOString());
+}
+
+// Zeigt nach dem Download einen erklärenden Dialog (kein simpler Toast),
+// da auf iOS sonst leicht übersehen wird, dass die Datei nur heruntergeladen,
+// aber nicht aktiv an einem gewählten Ort gespeichert wurde.
+function showBackupSavedHint(filename) {
+  confirmDialog(
+    'Backup heruntergeladen',
+    `„${filename}" wurde in „Dateien" → Downloads gespeichert. Tipp: Öffne die Dateien-App und verschiebe die Datei z. B. in iCloud Drive, damit sie auch bei einem Gerätewechsel erhalten bleibt.`,
+    () => {},
+    { icon: '💾', label: 'Verstanden', tone: 'primary' }
+  );
 }
 
 function doImport() {
