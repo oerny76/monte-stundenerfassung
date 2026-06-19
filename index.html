@@ -264,7 +264,7 @@
   <div class="tabs">
     <button class="tab-btn active" onclick="sw('erfassen')">Erfassen</button>
     <button class="tab-btn" onclick="sw('verlauf')">Verlauf</button>
-    <button class="tab-btn" onclick="sw('export')">Export</button>
+    <button class="tab-btn" onclick="sw('export')">Backup & Export</button>
   </div>
 </div>
 
@@ -446,6 +446,26 @@
       </div>
 
       <hr class="set-divider">
+      <div class="set-section">Backup-Speicherort</div>
+
+      <div class="set-field">
+        <label>Ordner für automatische Backups</label>
+        <div id="folderDisplay" style="padding:11px 12px; border:1.5px solid var(--border); border-radius:var(--radius-sm); background:var(--surface); font-size:0.88rem; color:var(--ink-soft); display:flex; align-items:center; gap:8px;">
+          <span id="folderIcon">⬇️</span>
+          <span id="folderName" style="flex:1;">Downloads-Ordner (Standard)</span>
+        </div>
+      </div>
+      <button id="folderPickBtn" class="btn-secondary" onclick="pickBackupFolder()" style="margin-bottom:8px;">
+        📁 Anderen Ordner festlegen
+      </button>
+      <button id="folderResetBtn" class="btn-secondary" onclick="resetBackupFolder()" style="display:none; margin-bottom:8px;">
+        ↺ Auf Downloads-Ordner zurücksetzen
+      </button>
+      <div id="folderApiHint" style="display:none; font-size:0.76rem; color:var(--ink-faint); line-height:1.5; padding:0 2px;">
+        Auf dem iPhone (Safari) kann kein fester Ordner ausgewählt werden — das ist eine technische Einschränkung von iOS. Backups landen dort automatisch im Downloads-Bereich der „Dateien"-App; von dort kannst du sie z. B. manuell nach iCloud Drive verschieben.
+      </div>
+
+      <hr class="set-divider">
       <div class="set-section">Datenspeicherung</div>
 
       <div class="info-box">
@@ -481,7 +501,7 @@
 
       <div class="version-line">
         Familienarbeitsstunden Montessori-Campus Wertingen<br>
-        Version 1.5.0 · Entwickelt von Ernest Jennen
+        Version 1.6.0 · Entwickelt von Ernest Jennen
       </div>
 
     </div>
@@ -541,7 +561,7 @@
       <div class="info-box">
         <h4>🌱 Familienarbeitsstunden Montessori-Campus Wertingen</h4>
         <p>Entwickelt von Ernest Jennen in Eigeninitiative als Elternteil am Montessori-Campus Wertingen. Die App läuft vollständig lokal auf dem Gerät — ohne Server, ohne Cloud, ohne Registrierung.</p>
-        <p>Version 1.5.0</p>
+        <p>Version 1.6.0</p>
       </div>
 
     </div>
@@ -599,7 +619,7 @@
     <span class="ni">📋</span><span class="nl">Verlauf</span>
   </button>
   <button class="nb" id="nav-export" onclick="sw('export')">
-    <span class="ni">📤</span><span class="nl">Export</span>
+    <span class="ni">📤</span><span class="nl">Backup</span>
   </button>
 </div>
 
@@ -735,7 +755,7 @@ function sw(name) {
 // ═══════════════════════════════════════════
 // SETTINGS SHEET
 // ═══════════════════════════════════════════
-function openSettings()  { document.getElementById('overlay').classList.add('on'); }
+function openSettings()  { document.getElementById('overlay').classList.add('on'); refreshFolderDisplay(); }
 function closeSettings() { document.getElementById('overlay').classList.remove('on'); updExport(); }
 function overlayClick(e) { if (e.target === document.getElementById('overlay')) closeSettings(); }
 function saveSetting(k)  {
@@ -1065,12 +1085,115 @@ function closeHelp() { document.getElementById('helpOverlay').classList.remove('
 function closeHelpOnOverlay(e) { if (e.target === document.getElementById('helpOverlay')) closeHelp(); }
 
 // ═══════════════════════════════════════════
+// BACKUP-ORDNER — Verwaltung via IndexedDB
+// (FileSystemDirectoryHandles lassen sich nicht in localStorage speichern)
+// ═══════════════════════════════════════════
+const FOLDER_DB = 'faw_folder_db';
+const FOLDER_STORE = 'handles';
+const FOLDER_KEY = 'backupDir';
+
+function folderDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(FOLDER_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(FOLDER_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveFolderHandle(handle) {
+  const db = await folderDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(FOLDER_STORE, 'readwrite');
+    tx.objectStore(FOLDER_STORE).put(handle, FOLDER_KEY);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function loadFolderHandle() {
+  try {
+    const db = await folderDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(FOLDER_STORE, 'readonly');
+      const req = tx.objectStore(FOLDER_STORE).get(FOLDER_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch { return null; }
+}
+
+async function clearFolderHandle() {
+  try {
+    const db = await folderDB();
+    const tx = db.transaction(FOLDER_STORE, 'readwrite');
+    tx.objectStore(FOLDER_STORE).delete(FOLDER_KEY);
+  } catch {}
+}
+
+// Ordner-Auswahl in den Einstellungen anzeigen
+async function refreshFolderDisplay() {
+  const nameEl = document.getElementById('folderName');
+  const iconEl = document.getElementById('folderIcon');
+  const resetBtn = document.getElementById('folderResetBtn');
+  const pickBtn  = document.getElementById('folderPickBtn');
+  const apiHint  = document.getElementById('folderApiHint');
+
+  if (!window.showDirectoryPicker) {
+    // iOS Safari & ältere Browser — kein fester Ordner möglich
+    nameEl.textContent = 'Downloads-Ordner (automatisch, iOS)';
+    iconEl.textContent = '⬇️';
+    resetBtn.style.display = 'none';
+    pickBtn.style.display = 'none';
+    apiHint.style.display = 'block';
+    return;
+  }
+
+  const handle = await loadFolderHandle();
+  if (handle) {
+    nameEl.textContent = handle.name;
+    iconEl.textContent = '📁';
+    resetBtn.style.display = 'block';
+  } else {
+    nameEl.textContent = 'Downloads-Ordner (Standard)';
+    iconEl.textContent = '⬇️';
+    resetBtn.style.display = 'none';
+  }
+}
+
+async function pickBackupFolder() {
+  if (!window.showDirectoryPicker) return;
+  try {
+    const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    await saveFolderHandle(handle);
+    await refreshFolderDisplay();
+    toast('📁 Ordner gespeichert');
+  } catch (err) {
+    if (err.name !== 'AbortError') toast('❌ Ordner konnte nicht gespeichert werden');
+  }
+}
+
+async function resetBackupFolder() {
+  await clearFolderHandle();
+  await refreshFolderDisplay();
+  toast('↺ Zurückgesetzt auf Downloads');
+}
+
+// Prüft/holt erneut die Schreibberechtigung für einen gespeicherten Ordner-Handle
+async function ensureFolderPermission(handle) {
+  const opts = { mode: 'readwrite' };
+  if (await handle.queryPermission(opts) === 'granted') return true;
+  if (await handle.requestPermission(opts) === 'granted') return true;
+  return false;
+}
+
+// ═══════════════════════════════════════════
 // BACKUP (JSON) — Speichern & Importieren
 // ═══════════════════════════════════════════
 async function doBackup() {
   if (!entries.length) { toast('⚠️ Keine Einträge vorhanden'); return; }
   const payload = {
-    version: '1.5.0',
+    version: '1.6.0',
     exportedAt: new Date().toISOString(),
     name: ls('faw_name') || '',
     year: ls('faw_year') || autoYear(),
@@ -1080,7 +1203,28 @@ async function doBackup() {
   const sn       = (ls('faw_name') || 'backup').replace(/\s+/g,'_');
   const filename = `FAW_Backup_${sn}_${today()}.json`;
 
-  // Variante 1: Speicherort-Dialog (Chrome/Android/Desktop) — Nutzer wählt aktiv einen Ordner
+  // Variante 1: Fest gemerkter Ordner aus den Einstellungen — speichert direkt, ohne Dialog
+  if (window.showDirectoryPicker) {
+    const dirHandle = await loadFolderHandle();
+    if (dirHandle) {
+      try {
+        const hasPermission = await ensureFolderPermission(dirHandle);
+        if (hasPermission) {
+          const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+          const writable = await fileHandle.createWritable();
+          await writable.write(json);
+          await writable.close();
+          markBackupDone();
+          toast(`💾 Backup in „${dirHandle.name}" gespeichert`);
+          return;
+        }
+      } catch (err) {
+        // Ordner z.B. gelöscht/nicht erreichbar → Fallback auf Picker-Dialog unten
+      }
+    }
+  }
+
+  // Variante 2: Kein fester Ordner gemerkt — Speicherort-Dialog (Chrome/Android/Desktop)
   if (window.showSaveFilePicker) {
     try {
       const handle = await window.showSaveFilePicker({
@@ -1099,7 +1243,7 @@ async function doBackup() {
     }
   }
 
-  // Variante 2: Fallback für iOS Safari & ältere Browser — Download + klare Anleitung
+  // Variante 3: Fallback für iOS Safari & ältere Browser — reiner Download
   const blob = new Blob([json], {type: 'application/json'});
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
@@ -1120,8 +1264,8 @@ function markBackupDone() {
 // aber nicht aktiv an einem gewählten Ort gespeichert wurde.
 function showBackupSavedHint(filename) {
   confirmDialog(
-    'Backup heruntergeladen',
-    `„${filename}" wurde in „Dateien" → Downloads gespeichert. Tipp: Öffne die Dateien-App und verschiebe die Datei z. B. in iCloud Drive, damit sie auch bei einem Gerätewechsel erhalten bleibt.`,
+    'Backup-Datei wurde geöffnet',
+    `„${filename}" wurde zum Herunterladen angeboten. Bitte prüfe in der Dateien-App unter „Downloads", ob die Datei dort tatsächlich angekommen ist — iOS speichert nicht immer automatisch. Tipp: von dort z. B. nach iCloud Drive verschieben, damit sie auch bei einem Gerätewechsel erhalten bleibt.`,
     () => {},
     { icon: '💾', label: 'Verstanden', tone: 'primary' }
   );
