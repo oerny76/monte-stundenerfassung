@@ -52,7 +52,7 @@
     .view.active { display: block; }
 
     /* ── FORM CARD ── */
-    .form-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; margin-bottom: 12px; }
+    .form-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; margin-bottom: 12px; overflow: hidden; }
     .form-card-title { font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ink-soft); margin-bottom: 14px; }
 
     /* ── INSTALL-HINWEIS (nur im Browser-Tab, nicht in installierter PWA) ── */
@@ -82,6 +82,9 @@
       padding: 10px 12px;
       display: block;
       box-sizing: border-box;
+      width: 100%;
+      max-width: 100%;
+      overflow: hidden;
     }
     .field select { -webkit-appearance: none; appearance: none; }
     .field textarea { -webkit-appearance: none; appearance: none; }
@@ -257,7 +260,6 @@
     </div>
     <div class="header-right">
       <div class="total-badge" id="totalBadge">0 h</div>
-      <button class="settings-icon-btn" onclick="openHelp()" title="Hilfe & Info">❓</button>
       <button class="settings-icon-btn" onclick="openSettings()" title="Einstellungen">⚙️</button>
     </div>
   </div>
@@ -296,7 +298,9 @@
     <!-- DATUM -->
     <div class="field" id="fDatum">
       <label>Datum</label>
-      <input type="date" id="inDatum" onchange="chk()">
+      <div style="width:100%; max-width:100%; overflow:hidden;">
+        <input type="date" id="inDatum" onchange="chk()">
+      </div>
       <div class="field-hint">Bitte ein Datum wählen.</div>
     </div>
 
@@ -318,6 +322,13 @@
     </div>
 
     <!-- KATEGORIE -->
+    <!-- BESCHREIBUNG — pflichtfeld -->
+    <div class="field" id="fNote">
+      <label>Beschreibung</label>
+      <textarea id="inNote" placeholder="Was wurde gemacht?" oninput="chk()"></textarea>
+      <div class="field-hint">Bitte eine Beschreibung eingeben.</div>
+    </div>
+
     <div class="field" id="fKat">
       <label>Kategorie <span style="font-weight:400; color:var(--ink-faint)">(optional)</span></label>
       <div class="cat-grid">
@@ -331,13 +342,6 @@
         <button class="cat-btn" onclick="pickCat(this,'Sonstiges')">✏️ Sonstiges</button>
       </div>
       <div class="field-hint">Bitte eine Kategorie wählen.</div>
-    </div>
-
-    <!-- BESCHREIBUNG — pflichtfeld -->
-    <div class="field" id="fNote">
-      <label>Beschreibung</label>
-      <textarea id="inNote" placeholder="Was wurde gemacht?" oninput="chk()"></textarea>
-      <div class="field-hint">Bitte eine Beschreibung eingeben.</div>
     </div>
 
     <!-- Buttons: Neuer Eintrag -->
@@ -501,7 +505,7 @@
 
       <div class="version-line">
         Familienarbeitsstunden Montessori-Campus Wertingen<br>
-        Version 1.6.0 · Entwickelt von Ernest Jennen
+        Version 1.7.0 · Entwickelt von Ernest Jennen
       </div>
 
     </div>
@@ -561,7 +565,7 @@
       <div class="info-box">
         <h4>🌱 Familienarbeitsstunden Montessori-Campus Wertingen</h4>
         <p>Entwickelt von Ernest Jennen in Eigeninitiative als Elternteil am Montessori-Campus Wertingen. Die App läuft vollständig lokal auf dem Gerät — ohne Server, ohne Cloud, ohne Registrierung.</p>
-        <p>Version 1.6.0</p>
+        <p>Version 1.7.0</p>
       </div>
 
     </div>
@@ -595,7 +599,7 @@
 <!-- ══════════════════════════════════════════
      BACKUP-HINWEIS-BANNER (dezent, schließbar)
 ══════════════════════════════════════════ -->
-<div id="backupBanner" style="display:none; position:fixed; left:14px; right:14px; bottom:84px; z-index:300;
+<div id="backupBanner" style="display:none; position:fixed; left:14px; right:72px; bottom:84px; z-index:300;
   background:var(--ink); color:#fff; border-radius:var(--radius-sm); padding:11px 12px 11px 14px;
   align-items:center; gap:10px; box-shadow:0 8px 24px rgba(0,0,0,0.25); animation:up 0.2s ease-out;">
   <span style="font-size:1.1rem; flex-shrink:0;">💾</span>
@@ -609,6 +613,16 @@
   <button onclick="dismissBanner()" style="flex-shrink:0; background:none; border:none; color:rgba(255,255,255,0.6);
     font-size:1rem; cursor:pointer; padding:2px 4px;">✕</button>
 </div>
+
+<!-- HILFE — schwebender Button rechts unten, oberhalb der Bottom-Nav -->
+<button id="helpFab" onclick="openHelp()" title="Hilfe & Info"
+  style="position:fixed; right:16px; bottom:96px; z-index:350;
+  width:48px; height:48px; border-radius:50%; border:none;
+  background:var(--ink); color:var(--yellow); font-size:1.3rem;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 6px 18px rgba(0,0,0,0.28); cursor:pointer;">
+  ❓
+</button>
 
 <!-- BOTTOM NAV -->
 <div class="nav">
@@ -1193,7 +1207,7 @@ async function ensureFolderPermission(handle) {
 async function doBackup() {
   if (!entries.length) { toast('⚠️ Keine Einträge vorhanden'); return; }
   const payload = {
-    version: '1.6.0',
+    version: '1.7.0',
     exportedAt: new Date().toISOString(),
     name: ls('faw_name') || '',
     year: ls('faw_year') || autoYear(),
@@ -1243,32 +1257,66 @@ async function doBackup() {
     }
   }
 
-  // Variante 3: Fallback für iOS Safari & ältere Browser — reiner Download
-  const blob = new Blob([json], {type: 'application/json'});
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = filename;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a); URL.revokeObjectURL(url);
-  markBackupDone();
-  showBackupSavedHint(filename);
+  // Variante 3: Fallback für iOS Safari & ältere Browser
+  // iOS öffnet JSON-Dateien oft nur als Vorschau (Quick Look) statt sie zu speichern.
+  // Deshalb: VORHER erklären, was zu tun ist, und NACHHER aktiv nachfragen statt anzunehmen.
+  showPreBackupInstruction(() => {
+    const blob = new Blob([json], {type: 'application/json'});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    // Nicht sofort als erledigt markieren — erst nach aktiver Bestätigung unten.
+    showBackupConfirmCheck(filename);
+  });
 }
 
 function markBackupDone() {
   lsSet('faw_lastBackup', new Date().toISOString());
 }
 
-// Zeigt nach dem Download einen erklärenden Dialog (kein simpler Toast),
-// da auf iOS sonst leicht übersehen wird, dass die Datei nur heruntergeladen,
-// aber nicht aktiv an einem gewählten Ort gespeichert wurde.
-function showBackupSavedHint(filename) {
+// VORHER: erklärt in einfachen Worten, was als Nächstes zu tun ist,
+// bevor die iOS-Vorschau überhaupt erscheint.
+function showPreBackupInstruction(onContinue) {
   confirmDialog(
-    'Backup-Datei wurde geöffnet',
-    `„${filename}" wurde zum Herunterladen angeboten. Bitte prüfe in der Dateien-App unter „Downloads", ob die Datei dort tatsächlich angekommen ist — iOS speichert nicht immer automatisch. Tipp: von dort z. B. nach iCloud Drive verschieben, damit sie auch bei einem Gerätewechsel erhalten bleibt.`,
-    () => {},
-    { icon: '💾', label: 'Verstanden', tone: 'primary' }
+    'So sicherst du dein Backup',
+    `Gleich öffnet sich eine Vorschau deiner Backup-Datei. Das speichert noch nichts! Tippe dort unbedingt auf das Teilen-Symbol ⬆️ und wähle „In Dateien sichern" — erst dann ist dein Backup wirklich gespeichert.`,
+    onContinue,
+    { icon: '👀', label: 'Verstanden, weiter', tone: 'primary' }
   );
+}
+
+// NACHHER: aktive Rückfrage statt automatischer Erfolgsmeldung.
+// Nur bei "Ja, gespeichert" wird markBackupDone() aufgerufen.
+function showBackupConfirmCheck(filename) {
+  const overlay = document.getElementById('confirmOverlay');
+  document.getElementById('confirmIcon').textContent  = '❓';
+  document.getElementById('confirmTitle').textContent = 'Backup wirklich gespeichert?';
+  document.getElementById('confirmMsg').textContent   =
+    `Hast du bei „${filename}" auf Teilen ⬆️ → „In Dateien sichern" getippt?`;
+
+  const okBtn = document.getElementById('confirmOkBtn');
+  okBtn.textContent = 'Ja, gespeichert';
+  okBtn.style.background = 'var(--green)';
+  okBtn.style.color = '#fff';
+
+  // Cancel-Button umfunktionieren zu "Noch nicht"
+  const cancelBtn = overlay.querySelector('button[onclick="confirmResolve(false)"]');
+  if (cancelBtn) cancelBtn.textContent = 'Noch nicht';
+
+  _confirmCb = (confirmed) => {
+    // Cancel-Button-Beschriftung zurücksetzen für künftige Standard-Dialoge
+    if (cancelBtn) cancelBtn.textContent = 'Abbrechen';
+    if (confirmed) {
+      markBackupDone();
+      toast('✅ Backup bestätigt');
+    } else {
+      toast('⚠️ Bitte Backup noch in „Dateien" sichern');
+    }
+  };
+  overlay.classList.add('on');
 }
 
 function doImport() {
@@ -1319,7 +1367,7 @@ function confirmDialog(title, msg, onOk, opts) {
   const label = opts.label || 'Löschen';
   const tone  = opts.tone  || 'danger'; // 'danger' = rot, 'primary' = gelb
 
-  _confirmCb = onOk;
+  _confirmCb = (confirmed) => { if (confirmed && onOk) onOk(); };
   document.getElementById('confirmIcon').textContent  = icon;
   document.getElementById('confirmTitle').textContent = title;
   document.getElementById('confirmMsg').textContent   = msg;
@@ -1338,7 +1386,7 @@ function confirmDialog(title, msg, onOk, opts) {
 }
 function confirmResolve(ok) {
   document.getElementById('confirmOverlay').classList.remove('on');
-  if (ok && _confirmCb) _confirmCb();
+  if (_confirmCb) _confirmCb(ok);
   _confirmCb = null;
 }
 // ═══════════════════════════════════════════
