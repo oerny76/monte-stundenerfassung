@@ -23,6 +23,9 @@
       --red: #E05C3A;
       --red-light: #FFF0ED;
       --red-border: #FECDBE;
+      --green: #2E9E6B;
+      --green-light: #E9F7F1;
+      --green-border: #A9DFC5;
       --blue-light: #E8F4FF;
       --blue-border: #B3D4F5;
       --blue-text: #1a5a99;
@@ -438,7 +441,7 @@
       <div class="set-section">Meine Angaben</div>
       <div class="set-field">
         <label>Name / Familie</label>
-        <input type="text" id="setName" placeholder="z.B. Familie Müller" oninput="saveSetting('name')">
+        <input type="text" id="setName" placeholder="z.B. Familie Müller" onchange="saveSetting('name')">
       </div>
       <div class="set-field">
         <label>Schuljahr</label>
@@ -505,7 +508,7 @@
 
       <div class="version-line">
         Familienarbeitsstunden Montessori-Campus Wertingen<br>
-        Version 1.7.0 · Entwickelt von Ernest Jennen
+        Version 1.8.0 · Entwickelt von Ernest Jennen
       </div>
 
     </div>
@@ -565,7 +568,7 @@
       <div class="info-box">
         <h4>🌱 Familienarbeitsstunden Montessori-Campus Wertingen</h4>
         <p>Entwickelt von Ernest Jennen in Eigeninitiative als Elternteil am Montessori-Campus Wertingen. Die App läuft vollständig lokal auf dem Gerät — ohne Server, ohne Cloud, ohne Registrierung.</p>
-        <p>Version 1.7.0</p>
+        <p>Version 1.8.0</p>
       </div>
 
     </div>
@@ -773,7 +776,19 @@ function openSettings()  { document.getElementById('overlay').classList.add('on'
 function closeSettings() { document.getElementById('overlay').classList.remove('on'); updExport(); }
 function overlayClick(e) { if (e.target === document.getElementById('overlay')) closeSettings(); }
 function saveSetting(k)  {
-  if (k === 'name') lsSet('faw_name', document.getElementById('setName').value);
+  if (k === 'name') {
+    const oldName = ls('faw_name') || '';
+    const newName = document.getElementById('setName').value;
+    lsSet('faw_name', newName);
+
+    // Name rückwirkend auf ALLE bestehenden Einträge anwenden — egal ob sie
+    // vorher leer waren oder einen anderen/alten Namen trugen.
+    if (newName !== oldName && entries.length) {
+      entries.forEach(e => { e.name = newName; });
+      lsSet('faw_entries', JSON.stringify(entries));
+      renderList();
+    }
+  }
   if (k === 'year') lsSet('faw_year', document.getElementById('setYear').value);
   renderNoNameHint();
   toast('✅ Gespeichert');
@@ -832,7 +847,8 @@ function doSave() {
     datum:    getDateISO(),
     dauer:    selDur,
     kategorie:selCat,
-    notiz:    document.getElementById('inNote').value.trim()
+    notiz:    document.getElementById('inNote').value.trim(),
+    name:     ls('faw_name') || ''
   });
   persist();
   resetForm();
@@ -889,7 +905,8 @@ function doUpdate() {
     datum:     getDateISO(),
     dauer:     selDur,
     kategorie: selCat,
-    notiz:     document.getElementById('inNote').value.trim()
+    notiz:     document.getElementById('inNote').value.trim(),
+    name:      entries[idx].name ?? (ls('faw_name') || '')
   };
   persist();
   resetForm();
@@ -1005,11 +1022,11 @@ function updExport() {
 }
 
 function buildCSV() {
-  const name = ls('faw_name') || 'Unbekannt';
+  const fallbackName = ls('faw_name') || 'Unbekannt';
   const year = ls('faw_year') || autoYear();
   const rows = [['Name','Schuljahr','Datum','Stunden','Kategorie','Beschreibung']];
   entries.forEach(e => rows.push([
-    name, year, e.datum,
+    e.name || fallbackName, year, e.datum,
     String(e.dauer).replace('.',','),
     e.kategorie,
     e.notiz
@@ -1207,7 +1224,7 @@ async function ensureFolderPermission(handle) {
 async function doBackup() {
   if (!entries.length) { toast('⚠️ Keine Einträge vorhanden'); return; }
   const payload = {
-    version: '1.7.0',
+    version: '1.8.0',
     exportedAt: new Date().toISOString(),
     name: ls('faw_name') || '',
     year: ls('faw_year') || autoYear(),
@@ -1298,9 +1315,9 @@ function showBackupConfirmCheck(filename) {
     `Hast du bei „${filename}" auf Teilen ⬆️ → „In Dateien sichern" getippt?`;
 
   const okBtn = document.getElementById('confirmOkBtn');
+  // Vollständiger Reset, um Style-Reste aus vorherigen Dialogen sicher zu überschreiben
+  okBtn.style.cssText = 'padding:13px; border-radius:8px; border:none; font-family:\'DM Sans\',sans-serif; font-size:0.95rem; font-weight:700; cursor:pointer; display:block; width:100%; background:var(--green); color:#fff;';
   okBtn.textContent = 'Ja, gespeichert';
-  okBtn.style.background = 'var(--green)';
-  okBtn.style.color = '#fff';
 
   // Cancel-Button umfunktionieren zu "Noch nicht"
   const cancelBtn = overlay.querySelector('button[onclick="confirmResolve(false)"]');
